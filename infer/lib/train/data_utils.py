@@ -12,6 +12,23 @@ from infer.lib.train.mel_processing import spectrogram_torch
 from infer.lib.train.utils import load_filepaths_and_text, load_wav_to_torch
 
 
+
+
+class Volume_Extractor:
+    def __init__(self, hop_size = 512):
+        self.hop_size = hop_size
+        
+    def extract(self, audio): # audio: 2d tensor array
+        if not isinstance(audio,torch.Tensor):
+           audio = torch.Tensor(audio)
+        n_frames = int(audio.size(-1) // self.hop_size)
+        audio2 = audio ** 2
+        audio2 = torch.nn.functional.pad(audio2, (int(self.hop_size // 2), int((self.hop_size + 1) // 2)), mode = 'reflect')
+        volume = torch.nn.functional.unfold(audio2[:,None,None,:],(1,self.hop_size),stride=self.hop_size)[:,:,:n_frames].mean(dim=1)[0]
+        volume = torch.sqrt(volume)
+        return volume
+
+
 class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
     """
     1) loads audio, text pairs
@@ -29,6 +46,8 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         self.sampling_rate = hparams.sampling_rate
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 5000)
+        #here
+        self.if_vol_emb=hparams.if_vol_emb
         self._filter()
 
     def _filter(self):
@@ -60,7 +79,11 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         dv = audiopath_and_text[4]
 
         phone, pitch, pitchf = self.get_labels(phone, pitch, pitchf)
-        spec, wav = self.get_audio(file)
+        volume = None
+        if self.if_vol_emb:
+            spec,wav,volume = self.get_audio(file)
+        else:
+            spec, wav = self.get_audio(file)
         dv = self.get_sid(dv)
 
         len_phone = phone.size()[0]
@@ -73,12 +96,13 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
 
             spec = spec[:, :len_min]
             wav = wav[:, :len_wav]
+            if volume is not None:
+                volume = volume[:len_min]
 
             phone = phone[:len_min, :]
             pitch = pitch[:len_min]
             pitchf = pitchf[:len_min]
-
-        return (spec, wav, phone, pitch, pitchf, dv)
+        return (spec, wav, phone, pitch, pitchf, dv, volume)
 
     def get_labels(self, phone, pitch, pitchf):
         phone = np.load(phone)
@@ -104,10 +128,14 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
                 )
             )
         audio_norm = audio
+
         #        audio_norm = audio / self.max_wav_value
         #        audio_norm = audio / np.abs(audio).max()
 
         audio_norm = audio_norm.unsqueeze(0)
+        if self.if_vol_emb:
+            volume = Volume_Extractor(hop_size=self.hop_length).extract(audio_norm)
+
         spec_filename = filename.replace(".wav", ".spec.pt")
         if os.path.exists(spec_filename):
             try:
@@ -135,6 +163,8 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
             )
             spec = torch.squeeze(spec, 0)
             torch.save(spec, spec_filename, _use_new_zipfile_serialization=False)
+        if self.if_vol_emb:
+            return spec, audio_norm, volume
         return spec, audio_norm
 
     def __getitem__(self, index):
@@ -183,6 +213,12 @@ class TextAudioCollateMultiNSFsid:
         # dv = torch.FloatTensor(len(batch), 256)#gin=256
         sid = torch.LongTensor(len(batch))
 
+        # Handle volume embeddings
+        max_vol_len = max_phone_len
+        # vol_lengths = torch.LongTensor(len(batch))
+        vol_padded = torch.FloatTensor(len(batch), max_vol_len)
+        vol_padded.zero_()
+
         for i in range(len(ids_sorted_decreasing)):
             row = batch[ids_sorted_decreasing[i]]
 
@@ -206,6 +242,14 @@ class TextAudioCollateMultiNSFsid:
             # dv[i] = row[5]
             sid[i] = row[5]
 
+            # Handle volume embeddings
+            volume = row[6]
+            if volume is not None:
+                vol_padded[i, :volume.size(0)] = volume
+            else :
+                vol_padded = None
+            # vol_lengths[i] = volume.size(0)
+
         return (
             phone_padded,
             phone_lengths,
@@ -217,6 +261,7 @@ class TextAudioCollateMultiNSFsid:
             wave_lengths,
             # dv
             sid,
+            vol_padded
         )
 
 
