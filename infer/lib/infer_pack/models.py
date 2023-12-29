@@ -959,6 +959,7 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
         sid: torch.Tensor,
         skip_head: Optional[torch.Tensor] = None,
         return_length: Optional[torch.Tensor] = None,
+        vol = None
     ):
         g = self.emb_g(sid).unsqueeze(-1)
         # vol proj
