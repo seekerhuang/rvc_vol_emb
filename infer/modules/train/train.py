@@ -333,6 +333,7 @@ def train_and_evaluate(
                         wave,
                         wave_lengths,
                         sid,
+                        volume,
                     ) = info
                 else:
                     (
@@ -356,6 +357,7 @@ def train_and_evaluate(
                     spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
                     wave = wave.cuda(rank, non_blocking=True)
                     wave_lengths = wave_lengths.cuda(rank, non_blocking=True)
+                    volume = volume.cuda(rank, non_blocking=True)
                 # Cache on list
                 if hps.if_f0 == 1:
                     cache.append(
@@ -371,6 +373,7 @@ def train_and_evaluate(
                                 wave,
                                 wave_lengths,
                                 sid,
+                                volume
                             ),
                         )
                     )
@@ -412,6 +415,7 @@ def train_and_evaluate(
                 wave,
                 wave_lengths,
                 sid,
+                volume
             ) = info
         else:
             phone, phone_lengths, spec, spec_lengths, wave, wave_lengths, sid = info
@@ -426,6 +430,7 @@ def train_and_evaluate(
             spec = spec.cuda(rank, non_blocking=True)
             spec_lengths = spec_lengths.cuda(rank, non_blocking=True)
             wave = wave.cuda(rank, non_blocking=True)
+            volume = volume.cuda(rank, non_blocking=True)
             # wave_lengths = wave_lengths.cuda(rank, non_blocking=True)
 
         # Calculate
@@ -437,7 +442,7 @@ def train_and_evaluate(
                     x_mask,
                     z_mask,
                     (z, z_p, m_p, logs_p, m_q, logs_q),
-                ) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid)
+                ) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid,vol=volume)
             else:
                 (
                     y_hat,
