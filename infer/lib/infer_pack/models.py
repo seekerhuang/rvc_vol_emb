@@ -931,7 +931,7 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
 
     @torch.jit.ignore
     def forward(
-        self, phone, phone_lengths, pitch, pitchf, y, y_lengths, ds
+        self, phone, phone_lengths, pitch, pitchf, y, y_lengths, ds,vol = None
     ):  # 这里ds是id，[bs,1]
         # print(1,pitch.shape)#[bs,t]
         g = self.emb_g(ds).unsqueeze(-1)  # [b, 256, 1]##1是t，广播的
