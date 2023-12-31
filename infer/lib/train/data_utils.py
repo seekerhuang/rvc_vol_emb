@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 import numpy as np
 import torch
 import torch.utils.data
+import random
 
 from infer.lib.train.mel_processing import spectrogram_torch
 from infer.lib.train.utils import load_filepaths_and_text, load_wav_to_torch
@@ -47,7 +48,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 5000)
         #here
-        self.if_vol_emb=hparams.if_vol_emb
+        self.if_vol_emb=True
         self._filter()
 
     def _filter(self):
@@ -133,6 +134,20 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         #        audio_norm = audio / np.abs(audio).max()
 
         audio_norm = audio_norm.unsqueeze(0)
+        if random.choice([True, False]) and self.if_vol_emb and volume is not None:
+            max_amp = float(torch.max(torch.abs(audio_norm))) + 1e-6
+            max_shift = min(1, np.log10(1/max_amp))
+            log10_vol_shift = random.uniform(-0.5, max_shift)
+            if log10_vol_shift > 0:
+                log10_vol_shift = 0.9 * log10_vol_shift
+            # Calculate the amplified maximum amplitude
+            amplified_max_amp = max_amp * (10 ** log10_vol_shift)
+            # Check if the amplified maximum amplitude exceeds three times the original maximum amplitude
+            if amplified_max_amp > 3.0 * max_amp:
+                # If it does, limit the amplification
+                log10_vol_shift = np.log10(3.0)
+            audio_norm = audio_norm * (10 ** log10_vol_shift)
+
         if self.if_vol_emb:
             volume = Volume_Extractor(hop_size=self.hop_length).extract(audio_norm)
 
