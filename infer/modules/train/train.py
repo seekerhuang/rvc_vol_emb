@@ -229,17 +229,18 @@ def run(
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainG))
             if hasattr(net_g, "module"):
-                logger.info(
-                    net_g.module.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"]
+                result=net_g.module.load_state_dict(
+                        torch.load(hps.pretrainG, map_location="cpu")["model"],strict=False
                     )
-                )  ##测试不加载优化器
+                print("missing_keys: %s"%result.missing_keys)
+                print("unexpected_keys: %s"%result.unexpected_keys)
+                      ##测试不加载优化器
             else:
-                logger.info(
-                    net_g.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"]
+                result=net_g.load_state_dict(
+                        torch.load(hps.pretrainG, map_location="cpu")["model"],strict=False
                     )
-                )  ##测试不加载优化器
+                print("missing_keys: %s"%result.missing_keys)
+                print("unexpected_keys: %s"%result.unexpected_keys)  ##测试不加载优化器
         if hps.pretrainD != "":
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainD))
