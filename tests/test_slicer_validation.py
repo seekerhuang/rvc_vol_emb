@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from infer.lib.slicer2 import Slicer
+from infer.lib.slicer2 import Slicer, get_rms
 
 
 @pytest.mark.parametrize("sample_rate", [0, -1, -16000])
@@ -37,3 +37,15 @@ def test_slicer_rejects_hop_size_that_rounds_to_zero_samples(sample_rate, hop_si
 
 def test_slicer_keeps_default_hop_size_in_samples():
     assert Slicer(sr=16000).hop_size == 320
+
+
+@pytest.mark.parametrize("frame_length,hop_length", [(0, 1), (-1, 1), (8, 0), (8, -1)])
+def test_rms_rejects_non_positive_window_or_hop(frame_length, hop_length):
+    with pytest.raises(ValueError, match="must be positive"):
+        get_rms(np.ones(32), frame_length=frame_length, hop_length=hop_length)
+
+
+def test_rms_of_constant_signal_is_one_away_from_padding():
+    rms = get_rms(np.ones(32), frame_length=8, hop_length=2)
+    assert rms.shape == (1, 17)
+    np.testing.assert_allclose(rms[0, 2:-2], 1.0)

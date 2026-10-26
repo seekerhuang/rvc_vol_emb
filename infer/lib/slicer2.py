@@ -8,6 +8,10 @@ def get_rms(
     hop_length=512,
     pad_mode="constant",
 ):
+    if frame_length <= 0:
+        raise ValueError("frame_length must be positive")
+    if hop_length <= 0:
+        raise ValueError("hop_length must be positive")
     padding = (int(frame_length // 2), int(frame_length // 2))
     y = np.pad(y, padding, mode=pad_mode)
 
