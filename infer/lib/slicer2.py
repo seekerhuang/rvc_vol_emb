@@ -47,6 +47,8 @@ class Slicer:
     ):
         if sr <= 0:
             raise ValueError("Sample rate must be positive")
+        if hop_size <= 0:
+            raise ValueError("hop_size must be positive")
         if not min_length >= min_interval >= hop_size:
             raise ValueError(
                 "The following condition must be satisfied: min_length >= min_interval >= hop_size"
