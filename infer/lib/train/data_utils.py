@@ -13,19 +13,23 @@ from infer.lib.train.mel_processing import spectrogram_torch
 from infer.lib.train.utils import load_filepaths_and_text, load_wav_to_torch
 
 
-
-
 class Volume_Extractor:
-    def __init__(self, hop_size = 512):
+    def __init__(self, hop_size=512):
         self.hop_size = hop_size
-        
-    def extract(self, audio): # audio: 2d tensor array
-        if not isinstance(audio,torch.Tensor):
-           audio = torch.Tensor(audio)
+
+    def extract(self, audio):  # audio: 2d tensor array
+        if not isinstance(audio, torch.Tensor):
+            audio = torch.Tensor(audio)
         n_frames = int(audio.size(-1) // self.hop_size)
-        audio2 = audio ** 2
-        audio2 = torch.nn.functional.pad(audio2, (int(self.hop_size // 2), int((self.hop_size + 1) // 2)), mode = 'reflect')
-        volume = torch.nn.functional.unfold(audio2[:,None,None,:],(1,self.hop_size),stride=self.hop_size)[:,:,:n_frames].mean(dim=1)[0]
+        audio2 = audio**2
+        audio2 = torch.nn.functional.pad(
+            audio2,
+            (int(self.hop_size // 2), int((self.hop_size + 1) // 2)),
+            mode="reflect",
+        )
+        volume = torch.nn.functional.unfold(
+            audio2[:, None, None, :], (1, self.hop_size), stride=self.hop_size
+        )[:, :, :n_frames].mean(dim=1)[0]
         volume = torch.sqrt(volume)
         return volume
 
@@ -47,8 +51,8 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         self.sampling_rate = hparams.sampling_rate
         self.min_text_len = getattr(hparams, "min_text_len", 1)
         self.max_text_len = getattr(hparams, "max_text_len", 5000)
-        #here
-        self.if_vol_emb=True
+        # here
+        self.if_vol_emb = True
         self._filter()
 
     def _filter(self):
@@ -82,7 +86,7 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         phone, pitch, pitchf = self.get_labels(phone, pitch, pitchf)
         volume = None
         if self.if_vol_emb:
-            spec,wav,volume = self.get_audio(file)
+            spec, wav, volume = self.get_audio(file)
         else:
             spec, wav = self.get_audio(file)
         dv = self.get_sid(dv)
@@ -136,17 +140,17 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
         audio_norm = audio_norm.unsqueeze(0)
         if random.choice([True, False]) and self.if_vol_emb and volume is not None:
             max_amp = float(torch.max(torch.abs(audio_norm))) + 1e-6
-            max_shift = min(1, np.log10(1/max_amp))
+            max_shift = min(1, np.log10(1 / max_amp))
             log10_vol_shift = random.uniform(-0.5, max_shift)
             if log10_vol_shift > 0:
                 log10_vol_shift = 0.9 * log10_vol_shift
             # Calculate the amplified maximum amplitude
-            amplified_max_amp = max_amp * (10 ** log10_vol_shift)
+            amplified_max_amp = max_amp * (10**log10_vol_shift)
             # Check if the amplified maximum amplitude exceeds three times the original maximum amplitude
             if amplified_max_amp > 3.0 * max_amp:
                 # If it does, limit the amplification
                 log10_vol_shift = np.log10(3.0)
-            audio_norm = audio_norm * (10 ** log10_vol_shift)
+            audio_norm = audio_norm * (10**log10_vol_shift)
 
         if self.if_vol_emb:
             volume = Volume_Extractor(hop_size=self.hop_length).extract(audio_norm)
@@ -260,8 +264,8 @@ class TextAudioCollateMultiNSFsid:
             # Handle volume embeddings
             volume = row[6]
             if volume is not None:
-                vol_padded[i, :volume.size(0)] = volume
-            else :
+                vol_padded[i, : volume.size(0)] = volume
+            else:
                 vol_padded = None
             # vol_lengths[i] = volume.size(0)
 
@@ -276,7 +280,7 @@ class TextAudioCollateMultiNSFsid:
             wave_lengths,
             # dv
             sid,
-            vol_padded
+            vol_padded,
         )
 
 

@@ -105,7 +105,13 @@ class TextEncoder768(nn.Module):
         )
         self.proj = nn.Conv1d(hidden_channels, out_channels * 2, 1)
 
-    def forward(self, phone: torch.Tensor, pitch: torch.Tensor, lengths: torch.Tensor,vol: torch.Tensor):
+    def forward(
+        self,
+        phone: torch.Tensor,
+        pitch: torch.Tensor,
+        lengths: torch.Tensor,
+        vol: torch.Tensor,
+    ):
         if pitch is None:
             x = self.emb_phone(phone)
         else:
@@ -402,13 +408,17 @@ class SineGen(torch.nn.Module):
                 f0_buf[:, :, idx + 1] = f0_buf[:, :, 0] * (
                     idx + 2
                 )  # idx + 2: the (idx+1)-th overtone, (idx+2)-th harmonic
-            rad_values = (f0_buf / self.sampling_rate) % 1  ###%1意味着n_har的乘积无法后处理优化
+            rad_values = (
+                f0_buf / self.sampling_rate
+            ) % 1  ###%1意味着n_har的乘积无法后处理优化
             rand_ini = torch.rand(
                 f0_buf.shape[0], f0_buf.shape[2], device=f0_buf.device
             )
             rand_ini[:, 0] = 0
             rad_values[:, 0, :] = rad_values[:, 0, :] + rand_ini
-            tmp_over_one = torch.cumsum(rad_values, 1)  # % 1  #####%1意味着后面的cumsum无法再优化
+            tmp_over_one = torch.cumsum(
+                rad_values, 1
+            )  # % 1  #####%1意味着后面的cumsum无法再优化
             tmp_over_one *= upp
             tmp_over_one = F.interpolate(
                 tmp_over_one.transpose(2, 1),
@@ -850,12 +860,12 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
         self.gin_channels = gin_channels
         # self.hop_length = hop_length#
         self.spk_embed_dim = spk_embed_dim
-        self.vol_embedding=vol_embedding
+        self.vol_embedding = vol_embedding
         if self.vol_embedding:
-           self.emb_vol = nn.Linear(1, hidden_channels)
-           # init zero
-           nn.init.constant_(self.emb_vol.weight, 0)
-           nn.init.constant_(self.emb_vol.bias, 0)
+            self.emb_vol = nn.Linear(1, hidden_channels)
+            # init zero
+            nn.init.constant_(self.emb_vol.weight, 0)
+            nn.init.constant_(self.emb_vol.bias, 0)
         self.enc_p = TextEncoder768(
             inter_channels,
             hidden_channels,
@@ -931,13 +941,17 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
 
     @torch.jit.ignore
     def forward(
-        self, phone, phone_lengths, pitch, pitchf, y, y_lengths, ds,vol = None
+        self, phone, phone_lengths, pitch, pitchf, y, y_lengths, ds, vol=None
     ):  # 这里ds是id，[bs,1]
         # print(1,pitch.shape)#[bs,t]
         g = self.emb_g(ds).unsqueeze(-1)  # [b, 256, 1]##1是t，广播的
         # vol proj
-        vol = self.emb_vol(vol[:,:,None]).transpose(1,2) if (vol is not None and self.vol_embedding) else None
-        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths,vol)
+        vol = (
+            self.emb_vol(vol[:, :, None]).transpose(1, 2)
+            if (vol is not None and self.vol_embedding)
+            else None
+        )
+        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths, vol)
         z, m_q, logs_q, y_mask = self.enc_q(y, y_lengths, g=g)
         z_p = self.flow(z, y_mask, g=g)
         z_slice, ids_slice = commons.rand_slice_segments(
@@ -959,12 +973,16 @@ class SynthesizerTrnMs768NSFsid(nn.Module):
         sid: torch.Tensor,
         skip_head: Optional[torch.Tensor] = None,
         return_length: Optional[torch.Tensor] = None,
-        vol = None
+        vol=None,
     ):
         g = self.emb_g(sid).unsqueeze(-1)
         # vol proj
-        vol = self.emb_vol(vol[:,:,None]).transpose(1,2) if (vol is not None and self.vol_embedding) else None
-        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths,vol)
+        vol = (
+            self.emb_vol(vol[:, :, None]).transpose(1, 2)
+            if (vol is not None and self.vol_embedding)
+            else None
+        )
+        m_p, logs_p, x_mask = self.enc_p(phone, pitch, phone_lengths, vol)
         z_p = (m_p + torch.exp(logs_p) * torch.randn_like(m_p) * 0.66666) * x_mask
         if skip_head is not None and return_length is not None:
             assert isinstance(skip_head, torch.Tensor)

@@ -229,18 +229,20 @@ def run(
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainG))
             if hasattr(net_g, "module"):
-                result=net_g.module.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"],strict=False
-                    )
-                print("missing_keys: %s"%result.missing_keys)
-                print("unexpected_keys: %s"%result.unexpected_keys)
-                      ##测试不加载优化器
+                result = net_g.module.load_state_dict(
+                    torch.load(hps.pretrainG, map_location="cpu")["model"], strict=False
+                )
+                print("missing_keys: %s" % result.missing_keys)
+                print("unexpected_keys: %s" % result.unexpected_keys)
+                ##测试不加载优化器
             else:
-                result=net_g.load_state_dict(
-                        torch.load(hps.pretrainG, map_location="cpu")["model"],strict=False
-                    )
-                print("missing_keys: %s"%result.missing_keys)
-                print("unexpected_keys: %s"%result.unexpected_keys)  ##测试不加载优化器
+                result = net_g.load_state_dict(
+                    torch.load(hps.pretrainG, map_location="cpu")["model"], strict=False
+                )
+                print("missing_keys: %s" % result.missing_keys)
+                print(
+                    "unexpected_keys: %s" % result.unexpected_keys
+                )  ##测试不加载优化器
         if hps.pretrainD != "":
             if rank == 0:
                 logger.info("loaded pretrained %s" % (hps.pretrainD))
@@ -374,7 +376,7 @@ def train_and_evaluate(
                                 wave,
                                 wave_lengths,
                                 sid,
-                                volume
+                                volume,
                             ),
                         )
                     )
@@ -416,7 +418,7 @@ def train_and_evaluate(
                 wave,
                 wave_lengths,
                 sid,
-                volume
+                volume,
             ) = info
         else:
             phone, phone_lengths, spec, spec_lengths, wave, wave_lengths, sid = info
@@ -443,7 +445,16 @@ def train_and_evaluate(
                     x_mask,
                     z_mask,
                     (z, z_p, m_p, logs_p, m_q, logs_q),
-                ) = net_g(phone, phone_lengths, pitch, pitchf, spec, spec_lengths, sid,vol=volume)
+                ) = net_g(
+                    phone,
+                    phone_lengths,
+                    pitch,
+                    pitchf,
+                    spec,
+                    spec_lengths,
+                    sid,
+                    vol=volume,
+                )
             else:
                 (
                     y_hat,
