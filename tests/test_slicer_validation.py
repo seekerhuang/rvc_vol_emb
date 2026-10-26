@@ -27,3 +27,13 @@ def test_slicer_rejects_non_positive_hop_size(hop_size):
 @pytest.mark.parametrize("hop_size", [1, 20])
 def test_slicer_accepts_positive_hop_size(hop_size):
     assert Slicer(sr=16000, hop_size=hop_size).hop_size > 0
+
+
+@pytest.mark.parametrize("sample_rate,hop_size", [(1, 20), (16000, 0.001)])
+def test_slicer_rejects_hop_size_that_rounds_to_zero_samples(sample_rate, hop_size):
+    with pytest.raises(ValueError, match="hop_size must span at least one sample"):
+        Slicer(sr=sample_rate, hop_size=hop_size)
+
+
+def test_slicer_keeps_default_hop_size_in_samples():
+    assert Slicer(sr=16000).hop_size == 320
